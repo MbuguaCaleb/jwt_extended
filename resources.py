@@ -1,7 +1,6 @@
 from flask_restful import Resource,reqparse
-from models import UserModel
+from models import UserModel,RevokedTokenModel
 from flask_jwt_extended import (create_access_token,create_refresh_token,jwt_required,get_jwt_identity,get_raw_jwt,jwt_refresh_token_required)
-
 
 
 """requests have to be parsed eg when working with jsonify(like importing requests"""
@@ -62,13 +61,31 @@ class UserLogin(Resource):
 
 
 class UserLogoutAccess(Resource):
-    def post(self):
-        return{'message':'User logout'} 
-    
+    @jwt_required
+    def post(self):   
+        jti = get_raw_jwt()['jti']
+        try:
+            revoked_token= RevokedTokenModel(jti=jti)
+            revoked_token.add()
 
+            return {'message':'Access token has been revoked'}
+
+        except:
+            return {'message':'Something went wrong'},500
+
+    
 class UserLogoutRefresh(Resource):
+    @jwt_refresh_token_required
     def post(self):
-        return{'message':'User logout'} 
+        jti = get_raw_jwt()['jti']
+        try:
+            revoked_token = RevokedTokenModel(jti=jti)
+            revoked_token.add()
+            return {'message':'Refresh token has been revoked'}
+
+        except:
+            return{'message':'Something went wrong'},500
+
     
 
 """because access token expire in 15 mins you have to refresh"""
@@ -87,7 +104,6 @@ class AllUsers(Resource):
 
     def delete(self):
         return UserModel.delete_all()
-
 
 
 class SecretResource(Resource):
